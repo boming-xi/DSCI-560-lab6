@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DSCI 560 - Oil Wells Map</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div>
+        <div class="eyebrow">DSCI 560 Lab 6</div>
+        <h1>North Dakota Oil Wells</h1>
+        <p>
+          Interactive map of well locations with PDF extraction, stimulation data,
+          and drillingedge.com enrichment.
+        </p>
+      </div>
+      <div class="legend">
+        <div class="legend-title">Map Guide</div>
+        <div class="legend-item"><span class="dot"></span> Well Location</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section id="map" aria-label="Oil wells map"></section>
+      <aside class="panel">
+        <h2>How to Use</h2>
+        <p>Click any marker to see the well details, stimulation record, and web data.</p>
+        <div class="stats" id="stats">Loading data...</div>
+      </aside>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>
