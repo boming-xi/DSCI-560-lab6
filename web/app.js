@@ -16,10 +16,12 @@ function formatValue(value) {
 }
 
 function row(label, value) {
+  const formatted = formatValue(value);
+  if (formatted === "N/A") return "";
   return `
     <div class="row">
       <span class="label">${label}</span>
-      <span class="value">${formatValue(value)}</span>
+      <span class="value">${formatted}</span>
     </div>
   `;
 }
@@ -27,17 +29,25 @@ function row(label, value) {
 function buildPopup(props) {
   const title = formatValue(props.well_name || props.api || "Well");
   const url = formatValue(props.web_source_url);
-  const urlRow = url !== "N/A" ? `<a href="${url}" target="_blank" rel="noopener">Source</a>` : "N/A";
+  const urlRow =
+    url !== "N/A"
+      ? `<a href="${url}" target="_blank" rel="noopener">Source</a>`
+      : "N/A";
 
   return `
     <div class="popup">
       <h3>${title}</h3>
-      ${row("API", props.api)}
-      ${row("Operator", props.operator)}
-      ${row("County", props.county)}
-      ${row("State", props.state)}
-      ${row("Latitude", props.latitude)}
-      ${row("Longitude", props.longitude)}
+
+      <div class="section">
+        <strong>Well Information</strong>
+        ${row("API", props.api)}
+        ${row("Operator", props.operator)}
+        ${row("County", props.county)}
+        ${row("State", props.state)}
+        ${row("Latitude (decimal)", props.latitude_decimal)}
+        ${row("Longitude (decimal)", props.longitude_decimal)}
+      </div>
+
       <div class="section">
         <strong>Stimulation</strong>
         ${row("Date", props.date_stimulated)}
@@ -48,6 +58,7 @@ function buildPopup(props) {
         ${row("Volume", props.volume)}
         ${row("Proppant (lbs)", props.lbs_proppant)}
       </div>
+
       <div class="section">
         <strong>Web Data</strong>
         ${row("Status", props.web_well_status)}
@@ -63,8 +74,8 @@ function buildPopup(props) {
   `;
 }
 
-function updateStats(featureCount, totalCount) {
-  statsEl.textContent = `Loaded ${featureCount} mapped wells out of ${totalCount} records.`;
+function updateStats(featureCount) {
+  statsEl.textContent = `Loaded ${featureCount} wells with valid coordinates.`;
 }
 
 fetch("data/wells.geojson")
@@ -75,16 +86,22 @@ fetch("data/wells.geojson")
     return response.json();
   })
   .then((data) => {
-    const totalCount = Array.isArray(data.features) ? data.features.length : 0;
     const markers = L.geoJSON(data, {
-      pointToLayer: (feature, latlng) =>
-        L.circleMarker(latlng, {
+      pointToLayer: (feature, latlng) => {
+        const status = (feature.properties.web_well_status || "").toLowerCase();
+
+        let fill = "#999";
+        if (status.includes("active")) fill = "#2e8b57";
+        else if (status.includes("plugged")) fill = "#b22222";
+
+        return L.circleMarker(latlng, {
           radius: 6,
           weight: 1,
-          color: "#9d4027",
-          fillColor: "#c65a3a",
+          color: fill,
+          fillColor: fill,
           fillOpacity: 0.85,
-        }),
+        });
+      },
       onEachFeature: (feature, layer) => {
         layer.bindPopup(buildPopup(feature.properties));
       },
@@ -96,7 +113,7 @@ fetch("data/wells.geojson")
       map.setView([47.5, -102.9], 6);
     }
 
-    updateStats(markers.getLayers().length, totalCount);
+    updateStats(markers.getLayers().length);
   })
   .catch((error) => {
     statsEl.textContent = `Failed to load data: ${error.message}`;

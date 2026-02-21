@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Export wells + stimulations + web data to GeoJSON for mapping."""
-
 from __future__ import annotations
 
 import argparse
@@ -89,6 +86,7 @@ def build_features(conn: sqlite3.Connection) -> list[dict]:
 
     select_parts = [f"w.{col} AS w_{col}" for col in well_cols]
     select_parts += [f"s.{col} AS s_{col}" for col in stim_cols]
+
     query = (
         f"SELECT {', '.join(select_parts)} "
         "FROM wells w LEFT JOIN stimulations s ON s.well_id = w.id "
@@ -99,11 +97,13 @@ def build_features(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(query).fetchall()
 
     by_well: Dict[int, Dict[str, Any]] = {}
+
     for row in rows:
         row_dict = dict(row)
         well_id = row_dict.get("w_id")
         if well_id is None:
             continue
+
         if well_id not in by_well:
             entry: Dict[str, Any] = {}
             for col in well_cols:
@@ -112,18 +112,38 @@ def build_features(conn: sqlite3.Connection) -> list[dict]:
                 entry[col] = row_dict.get(f"s_{col}")
             by_well[well_id] = entry
         else:
-            # If this well already exists but stimulation fields are empty, fill them.
             existing = by_well[well_id]
             for col in stim_cols:
                 if existing.get(col) in (None, "", "N/A") and row_dict.get(f"s_{col}") not in (None, ""):
                     existing[col] = row_dict.get(f"s_{col}")
 
     features: list[dict] = []
+
     for _, data in by_well.items():
         lat, lon = pick_lat_lon(data)
         if lat is None or lon is None:
             continue
-        props = {key: normalize_missing(value) for key, value in data.items()}
+
+        well_info = {}
+        stimulation_info = {}
+        web_info = {}
+
+        for key, value in data.items():
+            clean_val = normalize_missing(value)
+
+            if key.startswith("web_"):
+                web_info[key] = clean_val
+            elif key in stim_cols:
+                stimulation_info[key] = clean_val
+            else:
+                well_info[key] = clean_val
+
+        props = {
+            "well": well_info,
+            "stimulation": stimulation_info,
+            "web": web_info,
+        }
+
         features.append(
             {
                 "type": "Feature",
@@ -136,7 +156,7 @@ def build_features(conn: sqlite3.Connection) -> list[dict]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export wells to GeoJSON for web mapping.")
+    parser = argparse.ArgumentParser(description="Export wells to structured GeoJSON for web mapping.")
     parser.add_argument("--db-path", default="oil_wells.db", help="SQLite database path.")
     parser.add_argument(
         "--output",
@@ -150,9 +170,12 @@ def main() -> None:
     args = parse_args()
     conn = sqlite3.connect(args.db_path)
     features = build_features(conn)
+
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
+
     with open(args.output, "w", encoding="utf-8") as handle:
         json.dump({"type": "FeatureCollection", "features": features}, handle, indent=2)
+
     print(f"Wrote {len(features)} features to {args.output}")
 
 
